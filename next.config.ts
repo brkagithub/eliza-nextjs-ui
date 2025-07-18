@@ -81,29 +81,20 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/ingest/static/:path(.*)',
-        destination: 'https://us-assets.i.posthog.com/static/:path',
+        source: "/relay-cAnL/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
       },
       {
-        source: '/ingest/:path(.*)',
-        destination: 'https://us.i.posthog.com/:path',
+        source: "/relay-cAnL/:path*",
+        destination: "https://eu.i.posthog.com/:path*",
       },
       {
-        source: '/profiles/:path(.*)',
-        destination: 'https://elizaos.github.io/profiles/:path',
-      },
-      {
-        source: '/bounties/:path(.*)',
-        destination: 'https://elizaos.github.io/website/:path',
-      },
-      {
-        source: '/eliza/:path(.*)',
-        destination: 'https://elizaos.github.io/eliza/:path',
+        source: "/relay-cAnL/flags",
+        destination: "https://eu.i.posthog.com/flags",
       },
     ];
   },
   // This is required to support PostHog trailing slash API requests
-  skipTrailingSlashRedirect: true,
-};
-
+  skipTrailingSlashRedirect: true, 
+}
 export default nextConfig;

@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { usePrivy } from '@privy-io/react-auth';
 import ChatPreviewSlider from '@/components/login/chat-preview-slider';
 import LoginForm from '@/components/login/login-form';
+import { PostHogTracking } from '@/lib/posthog';
+import { useUserManager } from '@/lib/user-manager';
 
 interface InviteValidationResult {
   valid: boolean;
@@ -22,6 +24,7 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, logout, authenticated, ready, user } = usePrivy();
+  const { getUserId } = useUserManager();
   
   const [inviteCode, setInviteCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
@@ -71,6 +74,12 @@ function LoginPageContent() {
           setIsRedirecting(true);
           console.log('[LoginPage] Existing user found, redirecting...');
           
+          // Track user sign in
+          PostHogTracking.getInstance().userSignIn({
+            email: user.email?.address,
+            userId: getUserId(),
+          });
+          
           // Check for return URL parameter
           const returnUrl = searchParams.get('returnUrl');
           if (returnUrl) {
@@ -98,6 +107,7 @@ function LoginPageContent() {
           setError('You need an invite code to access AUBRAI. Please enter your invite code below.');
         } else {
           setError('Error connecting to the server. Please try again.');
+          PostHogTracking.getInstance().authError('user_check_failed', error?.message || 'Unknown error');
         }
         setIsAuthenticating(false);
         await logout();
@@ -127,15 +137,18 @@ function LoginPageContent() {
       if (response.ok && result.valid) {
         setValidationResult(result);
         setError('');
+        PostHogTracking.getInstance().inviteValidated(code, true);
         return true;
       } else {
         setError(result.error || 'Invalid invite code');
         setValidationResult({ valid: false });
+        PostHogTracking.getInstance().inviteValidated(code, false);
         return false;
       }
     } catch (err) {
       setError('Failed to validate invite code');
       setValidationResult({ valid: false });
+      PostHogTracking.getInstance().inviteValidated(code, false);
       return false;
     } finally {
       setIsValidating(false);
@@ -161,6 +174,7 @@ function LoginPageContent() {
     } catch (err) {
       setError('Authentication failed');
       setIsAuthenticating(false);
+      PostHogTracking.getInstance().authError('invite_login_failed', err instanceof Error ? err.message : 'Authentication failed');
     }
   };
 
@@ -174,6 +188,7 @@ function LoginPageContent() {
     } catch (err) {
       setError('Authentication failed');
       setIsAuthenticating(false);
+      PostHogTracking.getInstance().authError('existing_user_login_failed', err instanceof Error ? err.message : 'Authentication failed');
     }
   };
 
@@ -211,6 +226,14 @@ function LoginPageContent() {
 
       if (response.ok) {
         console.log('Redeem success:', data);
+        
+        // Track invite redemption and user signup
+        PostHogTracking.getInstance().inviteRedeemed(inviteCode, getUserId());
+        PostHogTracking.getInstance().userSignUp({
+          email: user.email?.address,
+          userId: getUserId(),
+          inviteCode,
+        });
         
         // Keep loading animation during redirect process
         console.log('[LoginPage] Invite redeemed successfully, preparing redirect...');

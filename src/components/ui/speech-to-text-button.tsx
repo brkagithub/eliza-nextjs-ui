@@ -3,6 +3,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { MicrophoneIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui';
 import clsx from 'clsx';
+import { PostHogTracking } from '@/lib/posthog';
 
 interface SpeechToTextButtonProps {
   onTranscript: (text: string) => void;
@@ -19,6 +20,7 @@ export default function SpeechToTextButton({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordingStartTimeRef = useRef<number | null>(null);
 
   const transcribeAudio = useCallback(async (audioBlob: Blob) => {
     setIsTranscribing(true);
@@ -66,6 +68,7 @@ export default function SpeechToTextButton({
 
       mediaRecorder.start();
       setIsRecording(true);
+      recordingStartTimeRef.current = Date.now();
     } catch (error) {
       console.error('Error starting recording:', error);
     }
@@ -73,8 +76,22 @@ export default function SpeechToTextButton({
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
+      const duration = recordingStartTimeRef.current 
+        ? Date.now() - recordingStartTimeRef.current 
+        : 0;
+      
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      
+      // Track voice message recording
+      PostHogTracking.getInstance().voiceMessageRecorded(duration);
+      
+      // Check if this is first time using voice feature
+      const hasUsedVoice = localStorage.getItem('discovered_voice_recording');
+      if (!hasUsedVoice) {
+        PostHogTracking.getInstance().featureDiscovered('voice_recording');
+        localStorage.setItem('discovered_voice_recording', 'true');
+      }
     }
   }, [isRecording]);
 

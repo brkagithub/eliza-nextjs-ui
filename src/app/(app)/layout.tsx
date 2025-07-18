@@ -6,6 +6,7 @@ import { AppSidebar } from '@/components/sidebar';
 import { SessionsProvider } from '@/contexts/SessionsContext';
 import { PanelLeft } from 'lucide-react';
 import SocketIOManager from '@/lib/socketio-manager';
+import { PostHogTracking } from '@/lib/posthog';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -24,6 +25,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     if (!userId) {
       return;
     }
+
+    // Identify user with PostHog (for returning users who don't go through login)
+    PostHogTracking.getInstance().identify(userId);
 
     console.log('[AppLayout] Initializing socket connection for user:', userId);
 

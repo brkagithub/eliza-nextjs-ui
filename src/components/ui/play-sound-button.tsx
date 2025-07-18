@@ -4,6 +4,7 @@ import { SpeakerWaveIcon } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui';
+import { PostHogTracking } from '@/lib/posthog';
 
 interface PlaySoundButtonProps {
   text: string;
@@ -68,6 +69,16 @@ export const PlaySoundButton = ({ text, className }: PlaySoundButtonProps) => {
       audio.onloadstart = () => {
         setIsLoading(false);
         setIsPlaying(true);
+        
+        // Track TTS usage
+        PostHogTracking.getInstance().textToSpeechUsed(cleanText.length);
+        
+        // Check if this is first time using TTS
+        const hasUsedTTS = localStorage.getItem('discovered_text_to_speech');
+        if (!hasUsedTTS) {
+          PostHogTracking.getInstance().featureDiscovered('text_to_speech');
+          localStorage.setItem('discovered_text_to_speech', 'true');
+        }
       };
 
       audio.onended = () => {
